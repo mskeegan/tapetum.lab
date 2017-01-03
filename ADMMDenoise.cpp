@@ -6,12 +6,11 @@
 
 using namespace arma;
 
-void admmdenoise(const mat & image, mat & solution, const double smooth_weight){
+void admmdenoise(const mat & image, mat & solution, const double mu){
 
 	// ***	The l2-penalty parameter (Lagrange multiplier)
-	const double lambda = smooth_weight/2.0;
+	double lambda = 0.1*255;
 	// *** Parameter mu - data-fidelity parameter
-	const double mu = smooth_weight;
 	
 	int row = image.n_rows;
 	int col = image.n_cols;
