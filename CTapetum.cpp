@@ -4,7 +4,7 @@
 
 using namespace arma;
 
-void denoise(const double* image, double* result, int ny, int nx, double smoothing_parameter){
+void denoise(double const * const image, double * const result, int ny, int nx, double smoothing_parameter){
 
     mat src_image(image,nx,ny);
     mat dest_image(nx,ny);

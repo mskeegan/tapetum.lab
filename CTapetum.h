@@ -2,7 +2,7 @@
 #define CTAPETUM_H_
 
 extern "C"{
-    void denoise(const double* image, double* result, int ny, int nx, double smoothing_parameter);
+    void denoise(double const * const image, double * const result, int ny, int nx, double smoothing_parameter);
 }
 
 #endif
