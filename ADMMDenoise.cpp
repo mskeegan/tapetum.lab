@@ -6,8 +6,49 @@
 
 using namespace arma;
 
-void admmdenoise(const mat & image, mat & solution, const double mu){
+void ad_core_iteration(const mat & image, mat & u, mat & bx, mat & by, mat & dx, mat & dy, double mu){
+	// ***	The l2-penalty parameter (Lagrange multiplier)
+	double lambda = 0.1*255;
+	// *** Parameter mu - data-fidelity parameter
+	
+	int row = image.n_rows;
+	int col = image.n_cols;
 
+	// ***	Initializing as the image	*** //
+	u = image;
+
+	double ux, uy, s, temp;
+
+	// *** The core iteration for the Split Bregman Algorithm for denoising *** //
+	for(int x = 1; x < row-1; x++){
+		for(int y = 1; y < col-1; y++){
+			ux = u(x+1,y) - u(x,y);
+			uy = u(x,y+1) - u(x,y);
+			s = sqrt( pow(ux+bx(x,y),2) + pow(uy+by(x,y),2) );
+			dx(x,y) = (s == 0) ? 0.0 : ((ux + bx(x,y)) / s) * fmax(s-1/lambda, 0.0);
+			dy(x,y) = (s == 0) ? 0.0 : ((uy + by(x,y)) / s) * fmax(s-1/lambda, 0.0);
+			bx(x,y) += ux - dx(x,y);
+			by(x,y) += uy - dy(x,y);
+		}
+	}
+
+	for(int x = 1; x < row - 1; x++){
+		for (int y = 1; y < col - 1; y++){
+			temp = -(dx(x,y) - dx(x-1,y) + dy(x,y) - dy(x,y-1));
+			temp += (bx(x,y) - bx(x-1,y) + by(x,y) - by(x,y-1));
+			temp = lambda*temp + mu*image(x,y) + lambda*(u(x-1,y) + u(x+1,y) + u(x,y-1) + u(x,y+1));
+			temp = temp/(mu+4*lambda);
+			u(x,y) = temp;
+		}
+
+		u(x, col-1) = u(x, col-2);
+	}
+
+	for(int y = 1; y < col-1; y++)
+		u(row-1,y) = u(row-2,y);
+};
+
+void admmdenoise(const mat & image, mat & solution, const double mu){
 	// ***	The l2-penalty parameter (Lagrange multiplier)
 	double lambda = 0.1*255;
 	// *** Parameter mu - data-fidelity parameter
