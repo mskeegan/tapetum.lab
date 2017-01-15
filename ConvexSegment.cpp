@@ -94,7 +94,7 @@ void GCSegment_2phase_core_iteration(mat & u, mat & d_x, mat & d_y, mat & b_x, m
 	num_iterations++;
     }
 
-    cout << "Convex ADMM Segmant, Iterations: " << num_iterations << ", Error Tolerance: " << tol << endl;
+    cout << "Convex ADMM Segment, Iterations: " << num_iterations << ", Error Tolerance: " << tol << endl;
 }
 
 
@@ -140,7 +140,7 @@ void GCS_threshold(const vector<mat> & raw_segments, umat & labels){
     int segments = raw_segments.size();
     int row = raw_segments[0].n_rows;
     int col = raw_segments[0].n_cols;
-    labels.zeros();
+    //labels.zeros();
 
     /*cube segment_mat(row,col,segments,fill::zeros);
     for (int j = 0; j < segments; j++){
@@ -148,13 +148,12 @@ void GCS_threshold(const vector<mat> & raw_segments, umat & labels){
 	}*/
 
     double max_val;
-    int max_index;
-
+    uint max_index;
     
     for (int y = 0; y < col; y++){
 	for (int x = 0; x < row; x++){
 	    max_val = 0.0;
-	    max_index = -1;
+	    max_index = 0;
 	    for (int j = 0; j < segments; j++){
 		if (raw_segments[j](x,y) > max_val){
 		    max_index = j;
@@ -182,23 +181,29 @@ void GCS_segments_to_image(mat & raw_segments, mat & image_result, double channe
     }
 }
 
-/*void GCS_segments_to_image(vector<mat> & segments, mat & image_result, double* channel_averages){
+void GCS_segments_to_image(vector<mat> & segments, mat & image_result, double* channel_averages){
 
     int clusters = segments.size();
-    int row = raw_segments.n_rows;
-    int col = raw_segments.n_cols;
+    int row = segments[0].n_rows;
+    int col = segments[0].n_cols;
 
-    // Using copy constructor to copy each mat object
-    vector<mat> thresholded_segments(segments);
-    GCS_threshold(thresholded_segments);
-    imat isegments = conv_to<imat>::from(true_segments);
+    // Using copy constructor to copy each mat 
+    umat thresholded_segments(row,col,fill::zeros);
+    cout << "Labels extrema: (" << thresholded_segments.min() << "," << thresholded_segments.max() << ")" << endl;
+    GCS_threshold(segments,thresholded_segments);
+
+    //#ifdef IMAGING_DEBUG
+    cout << "Constructing quantized image. " << "Clusters: " << clusters << endl;
+    cout << "Labels dimensions: (" << thresholded_segments.n_rows << "," << thresholded_segments.n_cols << ")" << endl;
+    cout << "Labels extrema: (" << thresholded_segments.min() << "," << thresholded_segments.max() << ")" << endl;
+    //#endif
 
     for (int x = 0; x < row; x++){
 	for (int y = 0; y < col; y++){
-	    image_result(x,y) = channel_averages[isegments(x,y)];
+	    image_result(x,y) = channel_averages[thresholded_segments(x,y)];
 	}
     }
-    }*/
+}
 
 void Simplex_projection(vec & c){
     
@@ -232,7 +237,7 @@ void Simplex_projection(vec & c){
 
 		iterations++;
 
-#ifdef IP_DEBUG
+#ifdef IMAGING_DEBUG_DEEP
 		cout << "(DEBUG)Iteration " << iterations << endl;
 		cout << "(DEBUG)Point: " << point << endl;
 		cout << "(DEBUG)Indices: " << indices << endl;
@@ -241,7 +246,7 @@ void Simplex_projection(vec & c){
 
 	c = point;
 
-#ifdef IP_DEBUG
+#ifdef IMAGING_DEBUG_DEEP
 	cout << "(DEBUG)Simplex Project Iterations: " << iterations << endl;
 #endif
 }
@@ -266,15 +271,15 @@ void GCSegment_SplitBregman_Multiphase(const mat & image, vector<mat> & segments
 
         // initialize channel penalties - currently manually
         // TODO: I need to implement a k-means or let the use pass in penalties
-        double colors[4] = {0.9, 0.6, 0.3, 0.0};
-	vector<mat> log_probs(num_channels);
+        //double colors[4] = {0.9, 0.6, 0.3, 0.0};
+	vector<mat> channels(num_channels);
 	for(int j = 0; j < num_channels; j++)
-		log_probs[j] = zeros(num_rows,num_cols);
+		channels[j] = zeros(num_rows,num_cols);
 
 	for(int j = 0; j < num_channels; j++){ 
 		for(int x = 0; x < num_rows; x++){
 			for(int y = 0; y < num_cols; y++){
-				log_probs[j](x,y) = pow(image(x,y) - channel_averages[j],2); 		
+				channels[j](x,y) = pow(image(x,y) - channel_averages[j],2); 		
 			}
 		}
 	}
@@ -284,12 +289,13 @@ void GCSegment_SplitBregman_Multiphase(const mat & image, vector<mat> & segments
 	vec vectosimplex(num_channels,fill::zeros);
 	double theta = 10.0;
 	int max_outer_iterations = 150;
+	double tol = 0.0;
 
 	// ***	Initializing v variables
 	for(int x = 0; x < num_rows; x++){
 		for(int y = 0; y < num_cols; y++){
 		        for(int j = 0; j < num_channels; j++){
-				vectosimplex(j) = (u[j](x,y) - lambda*theta*segments[j](x,y));
+				vectosimplex(j) = (u[j](x,y) - lambda*theta*channels[j](x,y));
 		        }
 			Simplex_projection(vectosimplex);
 			for(int j = 0; j < num_channels; j++)
@@ -298,7 +304,8 @@ void GCSegment_SplitBregman_Multiphase(const mat & image, vector<mat> & segments
 	}
 
 	// ***	Main Iterations
-	for(int k = 0; k < max_outer_iterations; k++){
+	int k;
+	for(k = 0; k < max_outer_iterations; k++){
 		// ***	Compute Gradient: TV-L2 Solve
 		for(int j = 0; j < num_channels; j++){
 			ad_core_iteration(v[j], u[j], b_x[j], b_y[j], d_x_tempholder, d_y_tempholder, 1.0/2*theta);
@@ -308,7 +315,7 @@ void GCSegment_SplitBregman_Multiphase(const mat & image, vector<mat> & segments
 		for(int x = 0; x < num_rows; x++){
 			for(int y = 0; y < num_cols; y++){
 				for(int j = 0; j < num_channels; j++)
-					vectosimplex(j) = (u[j](x,y) - lambda*theta*segments[j](x,y));
+					vectosimplex(j) = (u[j](x,y) - lambda*theta*channels[j](x,y));
 				Simplex_projection(vectosimplex);
 				for(int j = 0; j < num_channels; j++)
 					v[j](x,y) = vectosimplex(j);
@@ -338,4 +345,6 @@ void GCSegment_SplitBregman_Multiphase(const mat & image, vector<mat> & segments
 	}
 
 	segments = v;
+
+	cout << "Convex ADMM Multiphase Segment, Iterations: " << k << ", Error Tolerance: " << tol << endl;
 }
