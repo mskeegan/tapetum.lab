@@ -16,7 +16,7 @@ _segment_mp.argtypes =(ctypes.POINTER(ctypes.c_double),ctypes.POINTER(ctypes.c_d
 _segment_mp.restype = None
 
 _discrete_image = _mod.discrete_image
-_discrete_image.argtypes = (ctypes.POINTER(ctypes.c_double),ctypes.POINTER(ctypes.c_double),ctypes.c_int,ctypes.c_int,ctypes.POINTER(ctypes.c_double)) 
+_discrete_image.argtypes = (ctypes.POINTER(ctypes.c_double),ctypes.POINTER(ctypes.c_double),ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.POINTER(ctypes.c_double)) 
 _discrete_image.restype = None
 
 # First version of this function. Assumes that image input is 2D numpy array.
@@ -89,6 +89,7 @@ def segment(image, classes=2, means=None):
 
         if foundcv2:
             # use cv2.kmeans to find initial clusters
+            import cv2
 
             # convergence criteria
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
@@ -98,9 +99,9 @@ def segment(image, classes=2, means=None):
 
             # Apply KMeans
             z = img_d.reshape(np.prod(pixdims),-1).astype(np.float32)
-            compactness,labels,means = cv2.kmeans(z,classes,None,criteria,10,flags)
+            compactness,labels,means = cv2.kmeans(z,classes,criteria,10,flags)
         elif clrdim == 1:
-            centers = np.array(np.xrange(0,classes).as_type(float)/classes).reshape(-1,1)
+            means = np.array(np.xrange(0,classes).as_type(float)/classes).reshape(-1,1)
         else:
             # not yet implemented
             return
@@ -121,18 +122,22 @@ def segment(image, classes=2, means=None):
         classes = means.shape[0] # number of elements in means overrules classes value
     p_colors = np.array(means).ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
-    segdims = pixdims + list(classes)
     if classes == 2:
-        p_segs = np.zeros(imgdims).ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        _segment(p_src,p_segs,imgdims[0],imgdims[1],p_colors)
-    else:
+        segdims = pixdims
+        print "Segmenting image into",classes,"classes. Dimensions:",segdims
         p_segs = np.zeros(segdims).ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        _segment_mp(p_src,p_segs,imgdims[0],imgdims[1],classes,p_colors)
+        _segment(p_src,p_segs,segdims[0],segdims[1],p_colors)
+    else:
+        segdims = tuple(list(pixdims) + [classes])
+        print "Segmenting image into",classes,"classes. Dimensions:",segdims
+        p_segs = np.zeros(segdims).ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        _segment_mp(p_src,p_segs,segdims[0],segdims[1],classes,p_colors)
+
     _discrete_image(p_segs,p_dest,imgdims[0],imgdims[1],classes,p_colors)
 
     # normalize output to image data types
-    out_segments = np.ctypeslib.as_array(p_segs,dims)
-    out_array = np.ctypeslib.as_array(p_dest,dims)
+    out_segments = np.ctypeslib.as_array(p_segs,segdims)
+    out_array = np.ctypeslib.as_array(p_dest,imgdims)
 
     if(cast_uint_double):
         out_array = np.round(255*out_array)
