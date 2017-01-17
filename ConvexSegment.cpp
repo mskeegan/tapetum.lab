@@ -97,9 +97,7 @@ void GCSegment_2phase_core_iteration(mat & u, mat & d_x, mat & d_y, mat & b_x, m
     cout << "Convex ADMM Segment, Iterations: " << num_iterations << ", Error Tolerance: " << tol << endl;
 }
 
-
-
-void GCSegment_1c(mat & image, mat & segments, double channel_averages[2]){
+void GCSegment_1c(const mat & image, mat & segments, double channel_averages[2]){
 
     int row = image.n_rows;
     int col = image.n_cols;
