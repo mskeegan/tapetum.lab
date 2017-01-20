@@ -10,7 +10,7 @@ void GCSegment_SplitBregman_Multiphase(const arma::mat & image, std::vector<arma
 void GCS_threshold(const std::vector<arma::mat> & raw_segments, arma::umat & labels);
 
 void GCS_threshold(arma::mat & raw_segmentation, double threshold);
-void GCS_segments_to_image(arma::mat & segments, arma::mat & image_result, double channel_averages[2]);
+void GCS_segments_to_image(const arma::mat & segments, arma::mat & image_result, double channel_averages[2]);
 void GCS_segments_to_image(std::vector<arma::mat> & segments, arma::mat & image_result, double* channel_averages);
 
 void Simplex_projection(arma::vec & c);

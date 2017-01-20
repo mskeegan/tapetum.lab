@@ -109,7 +109,7 @@ void GCSegment_1c(const mat & image, mat & segments, double channel_averages[2])
     mat d_y(row, col, fill::zeros);
     mat r(row, col, fill::zeros);
     
-    // GCSegment_2phase_mem_alloc(row, col, u, d_x, d_y, b_x, b_y, r);
+    //GCSegment_2phase_mem_alloc(row, col, u, d_x, d_y, b_x, b_y, r);
     
     for (int x = 0; x < row; x++)
 	for (int y = 0; y < col; y++)
@@ -163,7 +163,7 @@ void GCS_threshold(const vector<mat> & raw_segments, umat & labels){
     }
 }
 
-void GCS_segments_to_image(mat & raw_segments, mat & image_result, double channel_averages[2]){
+void GCS_segments_to_image(const mat & raw_segments, mat & image_result, double channel_averages[2]){
 
     int row = raw_segments.n_rows;
     int col = raw_segments.n_cols;
