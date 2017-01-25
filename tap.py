@@ -115,7 +115,7 @@ def segment(image, classes=2, means=None):
 
             # Apply KMeans
             print "Find centers by k-means."
-            z = img_d.reshape(np.prod(pixdims),-1).astype(np.float32)
+            z = p_src.reshape(np.prod(pixdims),-1).astype(np.float32)
             compactness,labels,means = cv2.kmeans(z,classes,criteria,10,flags)
         elif clrdim == 1:
             means = np.array(np.xrange(0,classes).as_type(double)/classes).reshape(-1,1)
